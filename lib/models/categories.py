@@ -1,39 +1,71 @@
 import sqlite3
 
 class Category:
-    def __init__(self, category_name):
+
+    all = {}
+
+    def __init__(self, category_name, id=None):
         self.category_name = category_name
+        self.id = id
     
     def __str__(self):
         return f"Category(category_name='{self.category_name}')"
+    
+    @classmethod
+    def add_category(cls, category_name):
+        category = cls(category_name = category_name)
+        category.save()
+        return category
 
-    @staticmethod
-    def create_category(category_name):
+    
+    def save(self):
         conn = sqlite3.connect('expense.db')
         c = conn.cursor()
         try:
-            c.execute('INSERT INTO categories (category_name) VALUES (?)', (category_name,))
+            if self.id is None:
+                c.execute('INSERT INTO categories (category_name) VALUES (?)', (self.category_name,))
+                self.id = c.lastrowid
+                type(self).all[self.id] = self
+                print(f"Category '{self.category_name}' created successfully.")
+            else:
+                c.execute('UPDATE categories SET category_name = ? WHERE category_id = ?', (self.category_name, self.id))
+                print(f"Category with ID {self.id} updated successfully.")
             conn.commit()
-            print(f"Category '{category_name}' created successfully.")
         except sqlite3.IntegrityError:
-            print(f"Category '{category_name}' already exists.")
+            print(f"Category '{self.category_name}' already exists.")
         finally:
             conn.close()
 
-    @staticmethod
-    def get_category_by_id(category_id):
+    def delete(self):
+        if self.id is None:
+            print("Cannot delete an unsaved category.")
+            return
+        
+        conn = sqlite3.connect('expense.db')
+        c = conn.cursor()
+        c.execute('DELETE FROM categories WHERE category_id = ?', (self.id,))
+        conn.commit()
+        if c.rowcount > 0:
+            print(f"Category with ID {self.id} deleted successfully.")
+            self.id = None
+        else:
+            print(f"Category with ID {self.id} not found.")
+        conn.close()
+
+    @classmethod
+    def get_category_by_id(cls, category_id):
         conn = sqlite3.connect('expense.db')
         c = conn.cursor()
         c.execute('SELECT * FROM categories WHERE category_id = ?', (category_id,))
         category_data = c.fetchone()
         conn.close()
         if category_data:
-            return Category(category_name=category_data[1])
+            return cls(category_name=category_data[1], id=category_data[0])
         else:
             return None
 
-    @staticmethod
-    def get_all_categories():
+    @classmethod
+    def get_all_categories(cls):
         conn = sqlite3.connect('expense.db')
         c = conn.cursor()
         c.execute('SELECT * FROM categories')
@@ -41,17 +73,5 @@ class Category:
         conn.close()
         categories = []
         for category_data in categories_data:
-            categories.append(Category(category_name=category_data[1]))
+            categories.append(cls(category_name=category_data[1], id=category_data[0]))
         return categories
-
-    @staticmethod
-    def delete_category(category_id):
-        conn = sqlite3.connect('expense.db')
-        c = conn.cursor()
-        c.execute('DELETE FROM categories WHERE category_id = ?', (category_id,))
-        conn.commit()
-        if c.rowcount > 0:
-            print(f"Category with ID {category_id} deleted successfully.")
-        else:
-            print(f"Category with ID {category_id} not found.")
-        conn.close()
