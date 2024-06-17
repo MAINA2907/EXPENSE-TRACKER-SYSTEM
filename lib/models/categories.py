@@ -55,6 +55,7 @@ class Category:
     @classmethod
     def get_category_by_id(cls, category_id):
         conn = sqlite3.connect('expense.db')
+        
         c = conn.cursor()
         c.execute('SELECT * FROM categories WHERE category_id = ?', (category_id,))
         category_data = c.fetchone()
